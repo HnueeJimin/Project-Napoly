@@ -1,4 +1,5 @@
-# Project : Napoly
+#![png-clipart-s-s-c-napoli-serie-a-juventus-f-c-logo-campeonato-brasileiro-serie-a-others-blue-trademark-thumbnail](https://github.com/user-attachments/assets/1fb4aeb3-3cae-4cf4-b855-da48c9b9bb98)
+ Project : Napoly
 - 흑백요리사 나폴리맛피아에 영감을 받은 프로젝트 명
 
 ## 개발 기간
