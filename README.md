@@ -1,4 +1,4 @@
-# Project : Napoly
+# Project : Napoly ![images](https://github.com/user-attachments/assets/09a5d927-87ca-4115-9361-24d997e84d0f)
 - 흑백요리사 나폴리맛피아에 영감을 받은 프로젝트 명
 
 ## 개발 기간
