@@ -5,11 +5,16 @@
 
 using namespace std;
 
+// 전방 선언
+class Player;
+class Doctor;
+
 class GameState { // 게임 상태 관리
 private:
     static GameState* instance;
     vector<shared_ptr<Player>> players;
     GameState() {}
+
 
 public:
     static GameState* getInstance() {
@@ -26,6 +31,17 @@ public:
     const vector<shared_ptr<Player>>& getPlayers() const {
         return players;
     }
+};
+
+class Civilian : public Player { // 시민 클래스
+public:
+    Civilian(string n) : Player(n) {}
+
+    void action(Player& target) override {
+        // 시민은 특별한 능력이 없으므로 아무 동작도 하지 않습니다.
+    }
+
+    string getRole() const override { return "Civilian"; }
 };
 
 class Player {
