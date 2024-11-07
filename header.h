@@ -110,7 +110,7 @@ public:
     }
 };
 
-class Doctor : public Player { // 의사
+class Doctor : public Player { // 의사 ddddddddddd
 private:
     Player* protectedTarget; // 보호할 플레이어를 포인터로 선언
 
