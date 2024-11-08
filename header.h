@@ -1,39 +1,15 @@
-//header.h
+// header.h
+
+#ifndef HEADER_H
+#define HEADER_H
 
 #include <iostream>
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
 
 using namespace std;
-
-// 전방 선언
-class Player;
-class Doctor;
-
-class GameState { // 게임 상태 관리
-private:
-    static GameState* instance;
-    vector<shared_ptr<Player>> players;
-    GameState() {}
-
-
-public:
-    static GameState* getInstance() {
-        if (instance == nullptr) {
-            instance = new GameState();
-        }
-        return instance;
-    }
-
-    void addPlayer(shared_ptr<Player> player) {
-        players.push_back(player);
-    }
-
-    const vector<shared_ptr<Player>>& getPlayers() const {
-        return players;
-    }
-};
 
 class Player {
 protected: // 상속받은 클래스에서 사용하기 위해 protected로 선언
@@ -74,7 +50,7 @@ public:
         }
     }
 
-    string getRole() const override { return "Mafia"; }
+    string getRole() const override { return "마피아"; }
 };
 
 class Spy : public Player { // 스파이
@@ -93,7 +69,7 @@ public:
         }
     }
 
-    string getRole() const override { return "Spy"; }
+    string getRole() const override { return "스파이"; }
 };
 
 class Werewolf : public Player { // 늑대인간
@@ -113,7 +89,7 @@ public:
     
     void setTamed(bool isTamed) { tamed = isTamed; }
     bool isTamed() const { return tamed; }
-    string getRole() const override { return "Werewolf"; }
+    string getRole() const override { return "늑대인간"; }
 };
 
 class Madame : public Player { // 마담
@@ -134,7 +110,7 @@ public:
         }
     }
     
-    string getRole() const override { return "Madame"; }
+    string getRole() const override { return "마담"; }
 };
 
 class Scientist : public Player { // 과학자
@@ -158,19 +134,21 @@ public:
     }
     
     bool hasJoinedMafia() const { return contactedMafia; }
-    string getRole() const override { return "Scientist"; }
+    string getRole() const override { return "과학자"; }
 };
 
-class Police : Player { // 경찰
+class Police : public Player { // 경찰
 public:
     Police(string n) : Player(n) {}
 
     void action(Player& target) override {
         cout << target.getName() << " (은)는 " << (dynamic_cast<Mafia*>(&target) ? "마피아 입니다." : "마피아가 아닙니다.") << ".\n";
     }
+
+    string getRole() const override { return "Police"; }
 };
 
-class Doctor : public Player { // 의사 ddddddddddd
+class Doctor : public Player { // 의사
 private:
     Player* protectedTarget; // 보호할 플레이어를 포인터로 선언
 
@@ -183,6 +161,10 @@ public:
         cout << "오늘밤 " << target.getName() << " (을)를 보호합니다.\n";
     }
 
+    bool isProtected(Player &target) const { // 보호 여부 확인 함수
+        return protectedTarget == &target;
+    }
+
     void healIfAttacked(Player& target) {
         if (protectedTarget == &target && !target.checkAlive()) {
             target.setAlive(true);
@@ -190,7 +172,7 @@ public:
         }
     }
 
-    string getRole() const override { return "Doctor"; }
+    string getRole() const override { return "의사"; }
 };
 
 class Soldier : public Player { // 군인
@@ -207,7 +189,7 @@ public:
     bool isArmorActive() const { return armorActive; }
     void useArmor() { armorActive = false; }
 
-    string getRole() const override { return "Soldier"; }
+    string getRole() const override { return "군인"; }
 };
 
 class Thug : public Player { // 건달
@@ -220,7 +202,7 @@ public:
         cout << target.getName() << " (이)가 협박당해 투표할 수 없게 되었습니다.\n";
     }
 
-    string getRole() const override { return "Thug"; }
+    string getRole() const override { return "건달"; }
 };
 
 class Politician : public Player { // 정치인
@@ -233,7 +215,7 @@ public:
 
     int getVoteWeight() const { return 2; }
 
-    string getRole() const override { return "Politician"; }
+    string getRole() const override { return "정치인"; }
 };
 
 class Reporter : public Player { // 기자
@@ -251,7 +233,7 @@ public:
         }
     }
 
-    string getRole() const override { return "Reporter"; }
+    string getRole() const override { return "기자"; }
 };
 
 class Terrorist : public Player {
@@ -274,7 +256,7 @@ public:
         }
     }
     
-    string getRole() const override { return "Terrorist"; }
+    string getRole() const override { return "테러리스트"; }
 };
 
 class Nurse : public Player { // 간호사
@@ -307,7 +289,7 @@ public:
         }
     }
     
-    string getRole() const override { return "Nurse"; }
+    string getRole() const override { return "간호사"; }
 };
 
 class Mercenary : public Player { // 용병
@@ -319,7 +301,7 @@ public:
     Mercenary(string n) : Player(n), client(nullptr), canKill(false) {}
     
     void setClient(Player* p) {
-        if (p && p->getRole() != "Mafia") {
+        if (p && p->getRole() != "마피아") {
             client = p;
         }
     }
@@ -338,7 +320,7 @@ public:
         }
     }
     
-    string getRole() const override { return "Mercenary"; }
+    string getRole() const override { return "용병"; }
 };
 
 class Caveman : public Player { // 도굴꾼
@@ -349,201 +331,4 @@ class Cleric : public Player { // 성직자
 
 };
 
-class Game {
-private:
-    vector<shared_ptr<Player>> players;
-    bool isNight;
-    int dayCount;
-    
-public:
-    Game() : isNight(false), dayCount(1) {}
-    
-    void addPlayer(shared_ptr<Player> player) {
-        players.push_back(player);
-    }
-    
-    void startDay() {
-        isNight = false;
-        cout << "\n=== " << dayCount << "일차 낮이 되었습니다 ===\n";
-        
-        // 사망자 확인
-        checkDeaths();
-        
-        // 투표 진행
-        conductVoting();
-    }
-    
-    void startNight() {
-        isNight = true;
-        cout << "\n=== " << dayCount << "일차 밤이 되었습니다 ===\n";
-        
-        // 각 직업별 야간 행동 수행
-        for (auto& player : players) {
-            if (player->checkAlive() && player->getCanUseAbility()) {
-                // 실제 게임에서는 여기서 플레이어의 선택을 받아야 함
-                cout << player->getName() << "(" << player->getRole() << ")의 차례입니다.\n";
-            }
-        }
-        
-        dayCount++;
-    }
-    
-private:
-    void checkDeaths() {
-        cout << "\n사망자 확인:\n";
-        for (const auto& player : players) {
-            if (!player->checkAlive()) {
-                cout << player->getName() << "(" << player->getRole() << ") 이(가) 사망했습니다.\n";
-            }
-        }
-    }
-    
-    void conductVoting() {
-        cout << "\n투표를 진행합니다.\n";
-        // 투표 로직 구현
-        // 각 플레이어의 투표 권한 확인
-        // 정치인의 투표 가중치 적용
-        // 가장 많은 표를 받은 플레이어 처형
-    }
-    
-    bool checkGameEnd() {
-        int mafiaCount = 0;
-        int citizenCount = 0;
-        
-        for (const auto& player : players) {
-            if (player->checkAlive()) {
-                if (player->getRole() == "Mafia") {
-                    mafiaCount++;
-                } else {
-                    citizenCount++;
-                }
-            }
-        }
-        
-        if (mafiaCount == 0) {
-            cout << "시민 팀이 승리했습니다!\n";
-            return true;
-        } else if (mafiaCount >= citizenCount) {
-            cout << "마피아 팀이 승리했습니다!\n";
-            return true;
-        }
-        
-        return false;
-    }
-};
-
-enum class GamePhase { // 게임에 필요한 데이터 열거
-    DAY_DISCUSSION,
-    DAY_VOTING,
-    NIGHT_ACTION,
-    GAME_END
-};
-
-struct VoteResult { // 투표 결과 저장
-    shared_ptr<Player> target;
-    int voteCount;
-    vector<shared_ptr<Player>> voters;
-};
-
-class GameManager {
-private:
-    vector<shared_ptr<Player>> players;
-    GamePhase currentPhase;
-    int dayCount;
-    vector<VoteResult> voteResults;
-    
-public:
-    GameManager() : currentPhase(GamePhase::DAY_DISCUSSION), dayCount(1) {}
-
-    // 플레이어 상태 확인 메서드들
-    void checkPlayerStatuses() {
-        cout << "\n=== 생존자 목록 ===\n";
-        for (const auto& player : players) {
-            if (player->checkAlive()) {
-                cout << player->getName() << " (" << player->getRole() << ")\n";
-            }
-        }
-    }
-
-    vector<VoteResult> getVoteResults() const {
-        return voteResults;
-    }
-
-    // 투표 시스템
-    void initializeVoting() {
-        voteResults.clear();
-    }
-
-    void registerVote(shared_ptr<Player> voter, shared_ptr<Player> target) {
-        if (!voter->getCanVote()) {
-            cout << voter->getName() << "은(는) 투표할 수 없습니다.\n";
-            return;
-        }
-
-        // 정치인의 경우 투표 가중치 2 적용
-        int voteWeight = (voter->getRole() == "Politician") ? 2 : 1;
-
-        // 기존 투표 결과 찾기 또는 새로 생성
-        auto it = find_if(voteResults.begin(), voteResults.end(),
-            [target](const VoteResult& vr) { return vr.target == target; });
-
-        if (it != voteResults.end()) {
-            it->voteCount += voteWeight;
-            it->voters.push_back(voter);
-        } else {
-            VoteResult newVote{target, voteWeight, {voter}};
-            voteResults.push_back(newVote);
-        }
-    }
-
-    shared_ptr<Player> determineVoteResult() {
-        if (voteResults.empty()) return nullptr;
-
-        // 가장 많은 표를 받은 플레이어 찾기
-        auto maxVoteResult = max_element(voteResults.begin(), voteResults.end(),
-            [](const VoteResult& a, const VoteResult& b) {
-                return a.voteCount < b.voteCount;
-            });
-
-        // 정치인은 투표로 처형되지 않음
-        if (maxVoteResult->target->getRole() == "Politician") {
-            cout << "정치인은 투표로 처형되지 않습니다.\n";
-            return nullptr;
-        }
-
-        return maxVoteResult->target;
-    }
-
-    // 밤 행동 우선순위 설정
-    void executeNightActions() {
-        // 밤 행동 우선순위 정의
-        map<string, int> priority = {
-            {"Doctor", 1},    // 의사가 가장 먼저 보호 대상 선택
-            {"Nurse", 2},     // 간호사도 비슷한 우선순위
-            {"Spy", 3},       // 정보 수집 직업
-            {"Police", 4},    // 정보 수집 직업
-            {"Mafia", 5},     // 공격 직업
-            {"Werewolf", 6},  // 공격 직업
-            {"Mercenary", 7}, // 공격 직업
-            {"Reporter", 8},  // 정보 공개 직업
-            {"Madame", 9},    // 방해 직업
-            {"Thug", 10},     // 방해 직업
-            {"Terrorist", 11} // 마지막 우선순위
-        };
-
-        // 우선순위에 따라 정렬
-        vector<shared_ptr<Player>> sortedPlayers = players;
-        sort(sortedPlayers.begin(), sortedPlayers.end(),
-            [&priority](const shared_ptr<Player>& a, const shared_ptr<Player>& b) {
-                return priority[a->getRole()] < priority[b->getRole()];
-            });
-
-        // 정렬된 순서대로 밤 행동 실행
-        for (const auto& player : sortedPlayers) {
-            if (player->checkAlive() && player->getCanUseAbility()) {
-                // 여기서 각 플레이어의 밤 행동을 실행
-                // 실제 구현에서는 플레이어의 선택을 받아야 함
-            }
-        }
-    }
-};
+#endif // HEADER_H
