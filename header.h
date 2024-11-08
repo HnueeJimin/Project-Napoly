@@ -1,3 +1,5 @@
+//header.h
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -427,5 +429,121 @@ private:
         }
         
         return false;
+    }
+};
+
+enum class GamePhase { // 게임에 필요한 데이터 열거
+    DAY_DISCUSSION,
+    DAY_VOTING,
+    NIGHT_ACTION,
+    GAME_END
+};
+
+struct VoteResult { // 투표 결과 저장
+    shared_ptr<Player> target;
+    int voteCount;
+    vector<shared_ptr<Player>> voters;
+};
+
+class GameManager {
+private:
+    vector<shared_ptr<Player>> players;
+    GamePhase currentPhase;
+    int dayCount;
+    vector<VoteResult> voteResults;
+    
+public:
+    GameManager() : currentPhase(GamePhase::DAY_DISCUSSION), dayCount(1) {}
+
+    // 플레이어 상태 확인 메서드들
+    void checkPlayerStatuses() {
+        cout << "\n=== 생존자 목록 ===\n";
+        for (const auto& player : players) {
+            if (player->checkAlive()) {
+                cout << player->getName() << " (" << player->getRole() << ")\n";
+            }
+        }
+    }
+
+    vector<VoteResult> getVoteResults() const {
+        return voteResults;
+    }
+
+    // 투표 시스템
+    void initializeVoting() {
+        voteResults.clear();
+    }
+
+    void registerVote(shared_ptr<Player> voter, shared_ptr<Player> target) {
+        if (!voter->getCanVote()) {
+            cout << voter->getName() << "은(는) 투표할 수 없습니다.\n";
+            return;
+        }
+
+        // 정치인의 경우 투표 가중치 2 적용
+        int voteWeight = (voter->getRole() == "Politician") ? 2 : 1;
+
+        // 기존 투표 결과 찾기 또는 새로 생성
+        auto it = find_if(voteResults.begin(), voteResults.end(),
+            [target](const VoteResult& vr) { return vr.target == target; });
+
+        if (it != voteResults.end()) {
+            it->voteCount += voteWeight;
+            it->voters.push_back(voter);
+        } else {
+            VoteResult newVote{target, voteWeight, {voter}};
+            voteResults.push_back(newVote);
+        }
+    }
+
+    shared_ptr<Player> determineVoteResult() {
+        if (voteResults.empty()) return nullptr;
+
+        // 가장 많은 표를 받은 플레이어 찾기
+        auto maxVoteResult = max_element(voteResults.begin(), voteResults.end(),
+            [](const VoteResult& a, const VoteResult& b) {
+                return a.voteCount < b.voteCount;
+            });
+
+        // 정치인은 투표로 처형되지 않음
+        if (maxVoteResult->target->getRole() == "Politician") {
+            cout << "정치인은 투표로 처형되지 않습니다.\n";
+            return nullptr;
+        }
+
+        return maxVoteResult->target;
+    }
+
+    // 밤 행동 우선순위 설정
+    void executeNightActions() {
+        // 밤 행동 우선순위 정의
+        map<string, int> priority = {
+            {"Doctor", 1},    // 의사가 가장 먼저 보호 대상 선택
+            {"Nurse", 2},     // 간호사도 비슷한 우선순위
+            {"Spy", 3},       // 정보 수집 직업
+            {"Police", 4},    // 정보 수집 직업
+            {"Mafia", 5},     // 공격 직업
+            {"Werewolf", 6},  // 공격 직업
+            {"Mercenary", 7}, // 공격 직업
+            {"Reporter", 8},  // 정보 공개 직업
+            {"Madame", 9},    // 방해 직업
+            {"Thug", 10},     // 방해 직업
+            {"Terrorist", 11} // 마지막 우선순위
+        };
+
+        // 우선순위에 따라 정렬
+        vector<shared_ptr<Player>> sortedPlayers = players;
+        sort(sortedPlayers.begin(), sortedPlayers.end(),
+            [&priority](const shared_ptr<Player>& a, const shared_ptr<Player>& b) {
+                return priority[a->getRole()] < priority[b->getRole()];
+            });
+
+        // 정렬된 순서대로 밤 행동 실행
+        for (const auto& player : sortedPlayers) {
+            if (player->checkAlive() && player->getCanUseAbility()) {
+                // 여기서 각 플레이어의 밤 행동을 실행
+                // 실제 구현에서는 플레이어의 선택을 받아야 함
+            }
+        }
     }
 };
