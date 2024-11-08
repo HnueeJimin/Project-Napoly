@@ -33,17 +33,6 @@ public:
     }
 };
 
-class Civilian : public Player { // 시민 클래스
-public:
-    Civilian(string n) : Player(n) {}
-
-    void action(Player& target) override {
-        // 시민은 특별한 능력이 없으므로 아무 동작도 하지 않습니다.
-    }
-
-    string getRole() const override { return "Civilian"; }
-};
-
 class Player {
 protected: // 상속받은 클래스에서 사용하기 위해 protected로 선언
     string name; // 이름
@@ -106,15 +95,68 @@ public:
 };
 
 class Werewolf : public Player { // 늑대인간
+private:
+    bool tamed; // 길들여졌는지 여부
 
+public:
+    Werewolf(string n) : Player(n), tamed(false) {}
+    
+    void action(Player& target) override {
+        if (!canUseAbility) return;
+        if (tamed && target.checkAlive()) {
+            target.setAlive(false);
+            cout << target.getName() << "이(가) 늑대인간에게 살육당했습니다.\n";
+        }
+    }
+    
+    void setTamed(bool isTamed) { tamed = isTamed; }
+    bool isTamed() const { return tamed; }
+    string getRole() const override { return "Werewolf"; }
 };
 
 class Madame : public Player { // 마담
-
+private:
+    bool contactedMafia;
+    
+public:
+    Madame(string n) : Player(n), contactedMafia(false) {}
+    
+    void action(Player& target) override {
+        if (!canUseAbility) return;
+        target.setCanUseAbility(false);
+        cout << target.getName() << "이(가) 유혹당해 능력을 사용할 수 없게 되었습니다.\n";
+        
+        if (target.getRole() == "Mafia") {
+            contactedMafia = true;
+            cout << "마피아와 접선했습니다!\n";
+        }
+    }
+    
+    string getRole() const override { return "Madame"; }
 };
 
 class Scientist : public Player { // 과학자
-
+private:
+    bool hasResurrection; // 부활했는지 여부 확인
+    bool contactedMafia; // 마피아와 접선했는지
+    
+public:
+    Scientist(string n) : Player(n), hasResurrection(true), contactedMafia(false) {}
+    
+    void action(Player&) override {
+        // 과학자는 능동적인 행동이 없음
+    }
+    
+    void onDeath(bool byVote) {
+        if (!byVote && hasResurrection) {
+            contactedMafia = true;
+            hasResurrection = false;
+            // 다음 날 부활 로직은 Game 클래스에서 처리
+        }
+    }
+    
+    bool hasJoinedMafia() const { return contactedMafia; }
+    string getRole() const override { return "Scientist"; }
 };
 
 class Police : Player { // 경찰
@@ -210,16 +252,91 @@ public:
     string getRole() const override { return "Reporter"; }
 };
 
-class Terrorist : public Player { // 테러리스트
-
+class Terrorist : public Player {
+private:
+    Player* lastTarget;
+    
+public:
+    Terrorist(string n) : Player(n), lastTarget(nullptr) {}
+    
+    void action(Player& target) override {
+        if (!canUseAbility) return;
+        lastTarget = &target;
+        cout << target.getName() << "을(를) 대상으로 지정했습니다.\n";
+    }
+    
+    void checkRetaliation() {
+        if (lastTarget && !isAlive) {
+            lastTarget->setAlive(false);
+            cout << lastTarget->getName() << "이(가) 테러리스트와 함께 사망했습니다.\n";
+        }
+    }
+    
+    string getRole() const override { return "Terrorist"; }
 };
 
 class Nurse : public Player { // 간호사
-
+private:
+    bool contactedDoctor;
+    bool canHeal;
+    
+public:
+    Nurse(string n) : Player(n), contactedDoctor(false), canHeal(false) {}
+    
+    void action(Player& target) override {
+        if (!canUseAbility) return;
+        if (target.getRole() == "Doctor") {
+            contactedDoctor = true;
+            cout << "의사와 접선했습니다!\n";
+        }
+    }
+    
+    void onDoctorDeath() {
+        if (contactedDoctor) {
+            canHeal = true;
+            cout << "간호사가 의사의 역할을 이어받았습니다.\n";
+        }
+    }
+    
+    void heal(Player& target) {
+        if (canHeal && !target.checkAlive()) {
+            target.setAlive(true);
+            cout << "간호사가 " << target.getName() << "을(를) 치료했습니다.\n";
+        }
+    }
+    
+    string getRole() const override { return "Nurse"; }
 };
 
 class Mercenary : public Player { // 용병
-
+private:
+    Player* client;
+    bool canKill;
+    
+public:
+    Mercenary(string n) : Player(n), client(nullptr), canKill(false) {}
+    
+    void setClient(Player* p) {
+        if (p && p->getRole() != "Mafia") {
+            client = p;
+        }
+    }
+    
+    void checkClientStatus() {
+        if (client && !client->checkAlive()) {
+            canKill = true;
+        }
+    }
+    
+    void action(Player& target) override {
+        if (!canUseAbility || !canKill) return;
+        if (target.checkAlive()) {
+            target.setAlive(false);
+            cout << target.getName() << "이(가) 용병에게 처형당했습니다.\n";
+        }
+    }
+    
+    string getRole() const override { return "Mercenary"; }
 };
 
 class Caveman : public Player { // 도굴꾼
@@ -228,4 +345,87 @@ class Caveman : public Player { // 도굴꾼
 
 class Cleric : public Player { // 성직자
 
+};
+
+class Game {
+private:
+    vector<shared_ptr<Player>> players;
+    bool isNight;
+    int dayCount;
+    
+public:
+    Game() : isNight(false), dayCount(1) {}
+    
+    void addPlayer(shared_ptr<Player> player) {
+        players.push_back(player);
+    }
+    
+    void startDay() {
+        isNight = false;
+        cout << "\n=== " << dayCount << "일차 낮이 되었습니다 ===\n";
+        
+        // 사망자 확인
+        checkDeaths();
+        
+        // 투표 진행
+        conductVoting();
+    }
+    
+    void startNight() {
+        isNight = true;
+        cout << "\n=== " << dayCount << "일차 밤이 되었습니다 ===\n";
+        
+        // 각 직업별 야간 행동 수행
+        for (auto& player : players) {
+            if (player->checkAlive() && player->getCanUseAbility()) {
+                // 실제 게임에서는 여기서 플레이어의 선택을 받아야 함
+                cout << player->getName() << "(" << player->getRole() << ")의 차례입니다.\n";
+            }
+        }
+        
+        dayCount++;
+    }
+    
+private:
+    void checkDeaths() {
+        cout << "\n사망자 확인:\n";
+        for (const auto& player : players) {
+            if (!player->checkAlive()) {
+                cout << player->getName() << "(" << player->getRole() << ") 이(가) 사망했습니다.\n";
+            }
+        }
+    }
+    
+    void conductVoting() {
+        cout << "\n투표를 진행합니다.\n";
+        // 투표 로직 구현
+        // 각 플레이어의 투표 권한 확인
+        // 정치인의 투표 가중치 적용
+        // 가장 많은 표를 받은 플레이어 처형
+    }
+    
+    bool checkGameEnd() {
+        int mafiaCount = 0;
+        int citizenCount = 0;
+        
+        for (const auto& player : players) {
+            if (player->checkAlive()) {
+                if (player->getRole() == "Mafia") {
+                    mafiaCount++;
+                } else {
+                    citizenCount++;
+                }
+            }
+        }
+        
+        if (mafiaCount == 0) {
+            cout << "시민 팀이 승리했습니다!\n";
+            return true;
+        } else if (mafiaCount >= citizenCount) {
+            cout << "마피아 팀이 승리했습니다!\n";
+            return true;
+        }
+        
+        return false;
+    }
 };
