@@ -19,10 +19,11 @@ protected: // 상속받은 클래스에서 사용하기 위해 protected로 선�
     bool canUseAbility; // 능력 사용 가능 여부
 
 public:
+    Player() : isAlive(true), canVote(true), canUseAbility(true) {} // 기본 생성자
     Player(string n) : name(n), isAlive(true), canVote(true), canUseAbility(true) {}
     virtual ~Player() {}
 
-    virtual void setName(string n) { name = n; } // 이름 설정
+    void setName(string n) { name = n; } // 이름 설정
     string getName() const { return name; }
     bool checkAlive() const { return isAlive; } // 생존 여부
     void setAlive(bool alive) { isAlive = alive; } // bool 함수로 생사 여부를 확인
