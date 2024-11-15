@@ -63,7 +63,7 @@ public:
     void action(Player& target) override {
         if (!canUseAbility) return;
         cout << target.getName() << "의 직업은 " << target.getRole() << "입니다.\n";
-        if (target.getRole() == "Mafia") {
+        if (target.getRole() == "마피아") {
             contactedMafia = true;
             cout << "마피아와 접선했습니다!\n";
         }
@@ -104,7 +104,7 @@ public:
         target.setCanUseAbility(false);
         cout << target.getName() << "이(가) 유혹당해 능력을 사용할 수 없게 되었습니다.\n";
         
-        if (target.getRole() == "Mafia") {
+        if (target.getRole() == "마피아") {
             contactedMafia = true;
             cout << "마피아와 접선했습니다!\n";
         }
@@ -142,10 +142,10 @@ public:
     Police(string n) : Player(n) {}
 
     void action(Player& target) override {
-        cout << target.getName() << " (은)는 " << (dynamic_cast<Mafia*>(&target) ? "마피아 입니다." : "마피아가 아닙니다.") << ".\n";
+        cout << target.getName() << " (은)는 " << (dynamic_cast<Mafia*>(&target) ? "마피아 입니다." : "마피아가 아닙니다.") << "\n";
     }
 
-    string getRole() const override { return "Police"; }
+    string getRole() const override { return "경찰"; }
 };
 
 class Doctor : public Player { // 의사
