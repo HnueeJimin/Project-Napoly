@@ -8,7 +8,7 @@ void player_add(int num) { // 플레이어 추가
 
 }
 
-void gamerull() { // 게임 규칙
+void gamerule() { // 게임 규칙
 
 }
 
