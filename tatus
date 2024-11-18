@@ -1,0 +1,121 @@
+[33mcommit cf827e744e4873a4f21508c64fe48b7b43f92366[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mnf[m[33m, [m[1;31mmafia/nf[m[33m, [m[1;31mmafia/main[m[33m, [m[1;32mmaster[m[33m)[m
+Author: Jimin Kim <kimjm.hnu@gmail.com>
+Date:   Fri Nov 15 12:13:46 2024 +0900
+
+    프로젝트를 위한 기본 템플릿 업데이트
+
+[33mcommit b6457b1dad96c5953b0b011ad88e43652c024033[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Fri Nov 8 14:52:59 2024 +0900
+
+    클래스 업데이트
+
+[33mcommit aed767510de94ed500858c2b5f35af0f51e4816c[m
+Author: Jimin Kim <kimjm.hnu@gmail.com>
+Date:   Fri Nov 8 13:52:59 2024 +0900
+
+    임시저장
+
+[33mcommit dc8757c1b0a37ccf1a0c2e4910a52aa95242fbfc[m
+Merge: 99cfbe6 8e29458
+Author: Jimin Kim <kimjm.hnu@gmail.com>
+Date:   Fri Nov 8 13:27:53 2024 +0900
+
+    헤더 클래스 업데이트
+
+[33mcommit 99cfbe6396209bac68a790bc422960df4c321bdb[m
+Author: Jimin Kim <kimjm.hnu@gmail.com>
+Date:   Fri Nov 8 13:26:12 2024 +0900
+
+    클래스 업데이트
+
+[33mcommit 8e29458d09fffa6790aa6d4eac66a57a128298be[m
+Author: 이창민 <dlckdals524@naver.com>
+Date:   Thu Nov 7 21:28:13 2024 +0900
+
+    test
+
+[33mcommit 2e66c3deaaa5d696c73148e86df4fc25d7b34893[m
+Author: Jimin Kim <kimjm.hnu@gmail.com>
+Date:   Thu Nov 7 15:44:21 2024 +0900
+
+    헤더 메인함수 수정
+
+[33mcommit 247af4b21efbcb9b4b76a443b19be22d68180a63[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Thu Nov 7 14:57:21 2024 +0900
+
+    헤더 파일 업데이트
+
+[33mcommit e594ff2ed08249b5caf8f876af8dbb2071ea3bbc[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Thu Nov 7 14:06:28 2024 +0900
+
+    각 직업을 구현할 수 있는 클래스 추가 및 메인 파일 작성
+
+[33mcommit c933eac8bff8994ca454d12afedff702ad71efb7[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Tue Oct 29 17:53:02 2024 +0900
+
+    업데이트
+
+[33mcommit 9388bd3533c03395b8dc54455bca5fa42a6c8280[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Tue Oct 29 16:40:45 2024 +0900
+
+    readme 업데이트
+
+[33mcommit 332550890c66a191668112140c507b783d2a68cf[m
+Merge: 1347f93 1eb9b7f
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Mon Oct 28 22:01:30 2024 +0900
+
+    Merge branch 'main' of https://github.com/HnueeJimin/Project-Napoly
+
+[33mcommit 1347f93bb29a1c1ae42a2f1596e385e57cb7ecb0[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Mon Oct 28 22:00:45 2024 +0900
+
+    계획서 및 헤더 파일 임시작성
+
+[33mcommit 1eb9b7f6730148500355d32e136b91bd1df2b8fb[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Mon Oct 21 21:34:30 2024 +0900
+
+    Update README.md
+
+[33mcommit 21cb3a9a0be92434df0672ae6745efbc12456af0[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Mon Oct 21 21:34:10 2024 +0900
+
+    Update README.md
+
+[33mcommit 17985f6eede9b97bae25a726c4142728b03b6e15[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Mon Oct 21 21:33:28 2024 +0900
+
+    Update README.md
+
+[33mcommit 9b825bb4ba0367b3661ca625d1cf663e3cd21633[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Mon Oct 21 21:30:00 2024 +0900
+
+    Update README.md
+
+[33mcommit 649afbb6187bd8d9bfbe9b1a1adec70d2637d22c[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Mon Oct 21 21:28:34 2024 +0900
+
+    수정
+
+[33mcommit f6b517786656904121390e19c447a8bf1edf01df[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Mon Oct 21 21:27:19 2024 +0900
+
+    README 파일 작성
+
+[33mcommit 929a1ed1410dce8aac303e5a3b2d61b1cbbdbf98[m
+Author: HnueeJimin <kimjm.hnu@gmail.com>
+Date:   Mon Oct 21 21:16:00 2024 +0900
+
+    Initial commit

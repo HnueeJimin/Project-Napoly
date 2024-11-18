@@ -2,6 +2,10 @@
     "files.associations": {
         "xstring": "cpp",
         "memory": "cpp",
+<<<<<<< HEAD
         "vector": "cpp"
+=======
+        "random": "cpp"
+>>>>>>> 287bc1d5c35b6c45f5d6bfd7f9a463b5db334aaa
     }
 }
