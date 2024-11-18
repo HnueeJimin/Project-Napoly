@@ -1,5 +1,5 @@
 // main.cpp
-#include "header.h"
+#include "jobs.h"
 #include "function.h"
 using namespace std;
 
@@ -21,10 +21,7 @@ int main() {
                 start();
                 break;
             case 2:
-                int num;
-                cout << "몇 명의 플레이어를 등록 하시겠습니까?";
-                cin >> num;
-                player_add(num);
+                playerModify();
                 break;
             case 3:
                 gamerule();

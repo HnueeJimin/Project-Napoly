@@ -1,7 +1,7 @@
-// header.h
+// jobs.h
 
-#ifndef HEADER_H
-#define HEADER_H
+#ifndef JOBS_H
+#define JOBS_H
 
 #include <iostream>
 #include <string>
@@ -317,7 +317,7 @@ public:
         if (!canUseAbility || !canKill) return;
         if (target.checkAlive()) {
             target.setAlive(false);
-            cout << target.getName() << "이(가) 용병에게 처형당했습니다.\n";
+            cout << target.getName() << " (이)가 총을 맞고 사망했습니다.\n";
         }
     }
     
@@ -332,4 +332,4 @@ class Cleric : public Player { // 성직자
 
 };
 
-#endif // HEADER_H
+#endif // JOBS_H
