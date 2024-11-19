@@ -8,6 +8,7 @@
 #include <ctime>
 #include <functional>
 #include <memory>
+#include <fstream>
 #include "jobs.h"
 using namespace std;
 
@@ -107,6 +108,7 @@ void playerModify() {
                 break;
             }
             case 3:
+                cout << endl;
                 return;
             default:
                 cout << "잘못된 입력입니다.\n";
@@ -148,12 +150,25 @@ void assignRoles() {
 
 void gamerule() {
     cout << "\n=== 마피아 게임 규칙 ===\n";
+
+    ifstream ruleFile("mafiarule.txt");
+
+    if(!ruleFile.is_open()) {
     cout << "1. 게임은 최소 8명의 플레이어가 필요합니다.\n";
     cout << "2. 각 플레이어는 게임 시작 시 랜덤으로 직업을 부여받습니다.\n";
     cout << "3. 게임은 낮과 밤으로 진행됩니다.\n";
     cout << "4. 낮에는 토론과 투표를 통해 용의자를 처형합니다.\n";
     cout << "5. 밤에는 각자의 직업에 따른 특수 능력을 사용할 수 있습니다.\n";
     cout << "6. 마피아를 모두 제거하거나, 마피아가 선량한 시민 수와 같아지면 게임이 종료됩니다.\n\n";
+    }
+
+    string line;
+    while(getline(ruleFile, line)) {
+        cout << line << "\n";
+    }
+
+    ruleFile.close();
+    cout << "\n";
 }
 
 void start() {
@@ -173,7 +188,7 @@ void start() {
     for (const auto& player : players) {
         char input;
         yinput:
-        cout << "\n" << player->getName() << "님이 맞으시다면 y를 입력해주세요: ";
+        cout << "\n" << player->getName() << "님이 맞으시다면 (Y/y)를 입력해주세요: ";
         cin >> input;
         if (!(input == 'y' || input == 'Y')) {
             cout << "잘못된 입력입니다.\n";

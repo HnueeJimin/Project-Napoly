@@ -25,7 +25,9 @@ int main() {
                 break;
             case 3:
                 gamerule();
+                break;
             case 4:
+                cout << "게임을 종료합니다.\n";
                 return 0;
             default:
                 cout << "잘못된 입력입니다. 다시 입력해주세요\n";
