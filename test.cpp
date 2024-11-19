@@ -1,4 +1,4 @@
-#include "header.h"
+#include "jobs.h"
 
 int main() {
     // 플레이어 생성
