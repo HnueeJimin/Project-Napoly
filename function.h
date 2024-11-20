@@ -10,23 +10,32 @@
 #include <memory>
 #include <fstream>
 #include <algorithm>
+#include <chrono>
+#include <thread>
 #include "jobs.h"
+
 using namespace std;
+using namespace std::chrono;
+
+// 전역 변수 선언
+vector<string> playlist;
+vector<shared_ptr<Player>> players;
+int currentDay = 1;
+bool isNight = false;
 
 // 전방 선언
-void yourwork(string playerName);
+void startNight();
+void startDay();
+bool checkVictoryCondition();
+void startVoting();
+void clearInputBuffer();
 
 void clearInputBuffer() { // 입력 버퍼를 비우는 함수
     cin.clear();
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 }
 
-// 전역 변수로 플레이어 리스트와 플레이어 객체 리스트 선언
-vector<string> playlist;
-vector<shared_ptr<Player>> players;
-
-// 플레이어 관리 함수들
-void showPlayerList() {
+void showPlayerList() { // 플레이어 관리 함수들
     cout << "\n=== 현재 등록된 플레이어 목록 ===\n";
     for (size_t i = 0; i < playlist.size(); i++) {
         cout << i + 1 << ". " << playlist[i] << "\n";
@@ -34,7 +43,117 @@ void showPlayerList() {
     cout << "총 " << playlist.size() << "명\n";
 }
 
-void playerModify() {
+struct GameState { // 게임 상태 표시
+    vector<shared_ptr<Player>> alivePlayers;
+    bool isMafiaWin() const {
+        int mafiaCount = 0;
+        int citizenCount = 0;
+        for (const auto& player : alivePlayers) {
+            if (player->checkAlive()) {
+                if (player->getRole() == "마피아") mafiaCount++;
+                else citizenCount++;
+            }
+        }
+        return mafiaCount >= citizenCount;
+    }
+};
+
+struct NightAction { // 밤 행동 관리
+    shared_ptr<Player> actor;
+    shared_ptr<Player> target;
+    string actionType;
+    int priority;  // 우선순위 추가
+};
+
+class NightPhaseManager {
+private:
+    vector<NightAction> actions;
+    map<string, int> actionPriorities;
+
+public:
+    NightPhaseManager() {
+        actionPriorities = {
+            {"마피아", 1},
+            {"늑대인간", 2},
+            {"의사", 3},
+            {"간호사", 4},
+            {"경찰", 5},
+            {"스파이", 6},
+            {"기자", 7},
+            {"건달", 8},
+            {"테러리스트", 9},
+            {"성직자", 10}
+        };
+    }
+
+    void clear() {
+        actions.clear();
+    }
+
+    void addAction(shared_ptr<Player> actor, shared_ptr<Player> target, string actionType) {
+        NightAction action;
+        action.actor = actor;
+        action.target = target;
+        action.actionType = actionType;
+        action.priority = actionPriorities[actor->getRole()];
+        actions.push_back(action);
+    }
+
+    void processActions() {
+        // 우선순위에 따라 정렬
+        sort(actions.begin(), actions.end(),
+            [this](const NightAction& a, const NightAction& b) {
+                return actionPriorities[a.actor->getRole()] <
+                    actionPriorities[b.actor->getRole()];
+            });
+
+        map<shared_ptr<Player>, bool> healedPlayers;  // 치료된 플레이어 추적
+
+        // 각 액션 처리
+        for (const auto& action : actions) {
+            if (!action.actor->checkAlive() || !action.actor->getCanUseAbility())
+                continue;
+
+            if (action.actor->getRole() == "마피아") {
+                // 마피아의 공격
+                if (auto soldier = dynamic_cast<Soldier*>(action.target.get())) {
+                    if (soldier->defendShot()) continue;
+                }
+                action.target->setAlive(false);  // 일단 사망 처리
+            }
+            else if (action.actor->getRole() == "의사" ||
+                action.actor->getRole() == "간호사") {
+                // 치료 처리
+                if (!action.target->checkAlive()) {
+                    action.target->setAlive(true);
+                    healedPlayers[action.target] = true;
+                }
+            }
+            // 다른 직업들의 능력은 즉시 처리
+            else {
+                action.actor->action(*action.target);
+            }
+        }
+
+        // 결과 출력
+        for (const auto& action : actions) {
+            if (action.actor->getRole() == "마피아" && !action.target->checkAlive()) {
+                if (healedPlayers[action.target]) {
+                    cout << "의사가 " << action.target->getName()
+                        << "님을 치료했습니다.\n";
+                }
+                else {
+                    cout << action.target->getName()
+                        << "님이 마피아에게 처치당했습니다.\n";
+                }
+            }
+        }
+    }
+};
+
+static NightPhaseManager nightManager;
+
+void playerModify() { // 플레이어 수정 및 관리 함수
     cout << "\n=== 플레이어 관리 메뉴 ===\n";
 
     int player_cnt = playlist.size();
@@ -58,12 +177,12 @@ void playerModify() {
         case 1: {
             unsigned int num;
         sel:
-            cout << "몇 명의 플레이어를 추가하시겠습니까? (최대 인원 : 14) : ";
+            cout << "몇 명의 플레이어를 추가하시겠습니까? (최대 14명) : ";
             cin >> num;
 
             if (cin.fail() || num <= 0) {
                 clearInputBuffer();
-                cout << "잘못된 입력입니다. 범위 내에서 선택해주세요\n";
+                cout << "잘못된 입력입니다. 범위 내의 숫자에서 선택해주세요\n";
                 goto sel;
             }
             if (num + player_cnt > 14) { // 플레이어 숫자 검사
@@ -71,7 +190,7 @@ void playerModify() {
                 break;
             }
 
-            clearInputBuffer(); // 숫자 입력후 개행 문자 제거
+            clearInputBuffer();
             for (unsigned int i = 0; i < num; ++i) {
                 string name;
                 cout << "추가할 플레이어 이름을 입력하세요: ";
@@ -153,7 +272,7 @@ void assignRoles() {
     }
 }
 
-void gamerule() {
+void gameRule() {
     cout << "\n=== 마피아 게임 규칙 ===\n";
 
     ifstream ruleFile("mafiarule.txt");
@@ -174,82 +293,6 @@ void gamerule() {
 
     ruleFile.close();
     cout << "\n";
-}
-
-void start() {
-    // 플레이어 수 확인
-    if (playlist.size() < 8) {
-        cout << "게임을 시작하기 위해서는 최소 8명의 플레이어가 필요합니다.\n";
-        cout << "현재 플레이어 수: " << playlist.size() << "명\n";
-        return;
-    }
-
-    cout << "게임이 시작되었습니다\n";
-
-    // 직업 할당
-    assignRoles();
-
-    // 각 플레이어 순서대로 진행
-    for (const auto& player : players) {
-        char input;
-        while(1) {
-            cout << "\n" << player->getName() << "님이 맞으시다면 (Y/y)를 입력해주세요: ";
-            cin >> input;
-            if (input == 'y' || input == 'Y') break;
-            cout << player->getName() <<"님이 아닌 것 같습니다. 해당 플레이어가 직접 시도해주세요.\n";
-            clearInputBuffer();        
-        }
-
-        // 직업 공개 및 능력 사용
-        cout << player->getName() << "님의 직업은 " << player->getRole() << "입니다.\n";
-        if (player->checkAlive()) {
-            yourwork(player->getName());
-        }
-
-        // 화면 지우기
-        system("cls"); // Windows
-        // system("clear"); // Linux/Mac
-    }
-}
-
-void yourwork(string playerName) {
-    // 현재 플레이어의 객체 찾기
-    shared_ptr<Player> currentPlayer;
-    for (const auto& player : players) {
-        if (player->getName() == playerName) {
-            currentPlayer = player;
-            break;
-        }
-    }
-
-    if (!currentPlayer || !currentPlayer->getCanUseAbility()) {
-        cout << playerName << "님은 현재 능력을 사용할 수 없습니다.\n";
-        return;
-    }
-
-    // 능력을 사용할 대상 선택
-    cout << "\n능력을 사용할 대상을 선택하세요:\n";
-    for (size_t i = 0; i < players.size(); i++) {
-        if (players[i]->getName() != playerName && players[i]->checkAlive()) {
-            cout << i + 1 << ". " << players[i]->getName() << "\n";
-        }
-    }
-
-    int choice;
-    cout << "선택 (번호 입력): ";
-    cin >> choice;
-    choice--; // 0-based index로 변환
-
-    if (choice >= 0 && choice < static_cast<int>(players.size())) {
-        currentPlayer->action(*players[choice]);
-    }
-    else {
-        cout << "잘못된 선택입니다.\n";
-    }
-
-    cout << "\n계속하려면 아무 키나 누르세요...";
-    cin.ignore();
-    cin.get();
 }
 
 void startVoting() {
@@ -290,123 +333,137 @@ void startVoting() {
     }
 }
 
-struct NightAction {
-    shared_ptr<Player> actor; // 고유 행동
-    shared_ptr<Player> target; // 대상
-    string actionType;
-};
+void startNight() {
+    isNight = true;
+    cout << "\n=== " << currentDay << "번째 밤이 되었습니다 ===\n\n";
 
-vector<NightAction> nightActions;
-int currentDay = 1;
-bool isNight = false;
-
-void processNightActions() {
-    // 직업별 우선순위 설정
-    map<string, int> priority = {
-        {"마피아", 1},
-        {"늑대인간", 2},
-        {"의사", 3},
-        {"간호사", 4},
-        {"경찰", 5},
-        {"스파이", 6},
-        {"마담", 7},
-        {"도둑", 8},
-        {"건달", 9},
-        {"기자", 10},
-        {"테러리스트", 11},
-        {"성직자", 12}
-    };
-
-    // 우선순위에 따라 행동 정렬
-    sort(nightActions.begin(), nightActions.end(),
-        [&priority](const NightAction& a, const NightAction& b) {
-            return priority[a.actor->getRole()] < priority[b.actor->getRole()];
-        });
-
-    // 정렬된 순서대로 행동 처리
-    for (const auto& action : nightActions) {
-        // 행동 주체가 살아있고 능력을 사용할 수 있는 상태인지 확인
-        if (action.actor->checkAlive() && action.actor->getCanUseAbility()) {
-            action.actor->action(*action.target);
-        }
-    }
-
-    // 특수 상황 처리
-    // 테러리스트 보복 처리
-    for (const auto& player : players) {
-        if (auto terrorist = dynamic_cast<Terrorist*>(player.get())) {
-            terrorist->checkRetaliation();
-        }
-    }
-
-    // 의사 사망시 간호사 능력 승계 처리
-    bool doctorDied = false;
-    for (const auto& player : players) {
-        if (player->getRole() == "의사" && !player->checkAlive()) {
-            doctorDied = true;
-            break;
-        }
-    }
-
-    if (doctorDied) {
+    // 첫 번째 밤인 경우 직업 확인 과정 추가
+    if (currentDay == 1) {
         for (const auto& player : players) {
-            if (auto nurse = dynamic_cast<Nurse*>(player.get())) {
-                nurse->onDoctorDeath();
+            char input;
+            while (1) {
+                cout << player->getName() << "님이 맞으시다면 (Y/y)를 입력해주세요: ";
+                cin >> input;
+                if (input == 'y' || input == 'Y') break;
+                cout << player->getName() << "님이 아닌 것 같습니다. 해당 플레이어가 직접 시도해주세요.\n";
+                clearInputBuffer();
+            }
+            cout << player->getName() << "님의 직업은 " << player->getRole() << "입니다.\n";
+
+            if (player->getRole() == "용병") {
+                if (auto mercenary = dynamic_pointer_cast<Mercenary>(player)) {
+                    mercenary->assignClient(players);
+                    cout << "\n[용병 전용 정보]\n";
+                    mercenary->showClientInfo();
+                    cout << "\n이 정보는 용병만 볼 수 있는 정보입니다.\n";
+                }
             }
         }
     }
-}
 
-void startNight() {
-    isNight = true;
-    cout << "\n=== " << currentDay << "번째 밤이 되었습니다 ===\n";
-    nightActions.clear();
-
-    // 각 플레이어의 밤 행동 수집
+    // 능력 사용 단계
     for (const auto& player : players) {
         if (player->checkAlive() && player->getCanUseAbility()) {
             cout << "\n" << player->getName() << "님의 차례입니다.\n";
             cout << "당신의 직업은 " << player->getRole() << "입니다.\n";
 
-            // 능력을 사용할 수 있는 대상 목록 표시
-            cout << "\n능력을 사용할 수 있는 대상:\n";
-            for (size_t i = 0; i < players.size(); i++) {
-                if (players[i]->getName() != player->getName() && players[i]->checkAlive()) {
-                    cout << i + 1 << ". " << players[i]->getName() << "\n";
-                }
+            if (player->getRole() == "마담" || player->getRole() == "도둑" ||
+                player->getRole() == "과학자" || player->getRole() == "군인" ||
+                player->getRole() == "정치인" || player->getRole() == "도굴꾼") {
+                cout << "당신은 밤에 수행할 수 있는 역할이 없습니다.\n";
             }
-
-            int choice;
-            while (true) {
-                cout << "대상을 선택하세요 (0: 능력 사용하지 않음): ";
-                cin >> choice;
-
-                if (cin.fail()) {
-                    cin.clear();
-                    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-                    cout << "잘못된 입력입니다.\n";
-                    continue;
-                }
-
-                if (choice == 0) break;
-
-                if (choice > 0 && choice <= static_cast<int>(players.size())) {
-                    choice--; // 0-based index로 변환
-                    if (players[choice]->getName() != player->getName() && players[choice]->checkAlive()) {
-                        // 나중에 처리하기 위해 행동 저장
-                        nightActions.push_back({
-                            player,
-                            players[choice],
-                            player->getRole()
-                            });
-                        break;
+            else {
+                cout << "\n능력을 사용할 대상을 선택하세요:\n";
+                for (size_t i = 0; i < players.size(); i++) {
+                    if (players[i]->getName() != player->getName() && 
+                        players[i]->checkAlive()) {
+                        cout << i + 1 << ". " << players[i]->getName() << "\n";
                     }
                 }
-                cout << "잘못된 선택입니다.\n";
+
+                int choice;
+                while (true) {
+                    cout << "대상을 선택하세요 (0: 능력 사용하지 않음): ";
+                    cin >> choice;
+
+                    if (cin.fail()) {
+                        clearInputBuffer();
+                        cout << "잘못된 입력입니다.\n";
+                        continue;
+                    }
+
+                    if (choice == 0) break;
+
+                    if (choice > 0 && choice <= static_cast<int>(players.size())) {
+                        choice--;
+                        if (players[choice]->getName() != player->getName() && 
+                            players[choice]->checkAlive()) {
+                            nightManager.addAction(player, players[choice], player->getRole());
+                            break;
+                        }
+                    }
+                    cout << "잘못된 선택입니다.\n";
+                }
             }
-            system("cls"); // Windows의 화면 지우기 기능
+            cout << "\n계속하려면 아무 키나 누르세요...";
+            clearInputBuffer();
+            system("cls");
         }
     }
+}
+                
+void startGame() {
+    if (playlist.size() < 8) {
+        cout << "\n게임을 시작하기 위해서는 최소 8명의 플레이어가 필요합니다.\n";
+        cout << "현재 플레이어 수: " << playlist.size() << "명\n\n";
+        return;
+    }
+
+    cout << "게임이 시작되었습니다\n\n";
+    assignRoles();
+    currentDay = 1;
+
+    while (true) {
+        startNight(); // 밤 진행 (능력 사용)
+        
+        if (checkVictoryCondition()) {  // 밤 행동 후 승리 조건 체크
+            break;
+        }
+
+        startDay(); // 낮 진행 (결과 처리, 생존자 목록, 토론)
+        
+        if (checkVictoryCondition()) {  // 투표 후 승리 조건 체크
+            break;
+        }
+
+        currentDay++;
+    }
+}
+
+bool checkVictoryCondition() {
+    int mafiaCount = 0;
+    int citizenCount = 0;
+    for (const auto& player : players) {
+        if (player->checkAlive()) {
+            if (player->getRole() == "마피아" || player->getRole() == "스파이" || 
+                player->getRole() == "늑대인간" || player->getRole() == "마담" || 
+                player->getRole() == "도둑" || player->getRole() == "과학자") {
+                mafiaCount++;
+            }
+            else citizenCount++;
+        }
+    }
+
+
+    if (mafiaCount == 0) {
+        cout << "\n시민 팀이 승리했습니다!\n";
+        return true;
+    }
+    else if (mafiaCount >= citizenCount) {
+        cout << "\n마피아 팀이 승리했습니다\n";
+        return true;
+    }
+    return false;
 }
 
 void startDay() {
@@ -414,18 +471,21 @@ void startDay() {
     cout << "\n=== " << currentDay << "번째 날이 밝았습니다 ===\n";
 
     // 전날 밤의 행동 결과 처리
-    processNightActions();
+    nightManager.processActions();
+    nightManager.clear();
 
-    // 사망자 발표
+    // 생존자 확인
+    cout << "\n=== 생존자 목록 ===\n";
     for (const auto& player : players) {
-        if (!player->checkAlive()) {
-            cout << player->getName() << "이(가) 사망했습니다.\n";
+        if (player->checkAlive()) {
+            cout << player->getName() << "\n";
         }
     }
 
-    // 투표 진행
-    startVoting();
-    currentDay++;
+    cout << "\n토론 시간입니다. 60초 후 투표가 시작됩니다...\n";
+    std::this_thread::sleep_for(std::chrono::seconds(60)); // 토론 시간
+
+    startVoting(); // 투표 진행
 }
 
 #endif // FUNCTION_H

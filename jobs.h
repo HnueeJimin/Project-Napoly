@@ -8,6 +8,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <random>
 
 using namespace std;
 
@@ -235,7 +236,15 @@ public:
     }
 
     bool isArmorActive() const { return armorActive; }
-    void useArmor() { armorActive = false; }
+    
+    bool defendShot() {
+        if(armorActive) {
+            armorActive = false;
+            cout << "총격으로 인한 처치를 막아냈습니다!\n";
+            return true;
+        }
+        return false;
+    }
 
     string getRole() const override { return "군인"; }
 };
@@ -342,29 +351,73 @@ public:
 
 class Mercenary : public Player { // 용병
 private:
-    Player* client;
+    shared_ptr<Player> client;
     bool canKill;
 
 public:
     Mercenary(string n) : Player(n), client(nullptr), canKill(false) {}
 
-    void setClient(Player* p) {
-        if (p && p->getRole() != "마피아") {
-            client = p;
+    void assignClient(const vector<shared_ptr<Player>>& players) {
+        vector<shared_ptr<Player>> possibleClients;
+        for (const auto& player : players) {
+            if (player->getRole() != "마피아" && player->getName() != this->getName()) {
+                possibleClients.push_back(player);
+            }
+        }
+        
+        if (possibleClients.empty()) {
+            cout << "의뢰인이 될 수 있는 플레이어가 없습니다.\n";
+            return;
+        }
+
+        try {
+            random_device rd;
+            mt19937 gen(rd());
+            uniform_int_distribution<size_t> dis(0, possibleClients.size() - 1);
+            size_t index = dis(gen);
+            
+            if (index < possibleClients.size()) {  // 안전 검사
+                client = possibleClients[index];
+                cout << "용병의 의뢰인이 " << client->getName() << "으로 지정되었습니다.\n";
+            }
+        }
+        catch (const exception& e) {
+            cout << "의뢰인 지정 중 오류가 발생했습니다: " << e.what() << "\n";
+        }
+    }
+
+    void showClientInfo() const {
+        if (client) {
+            cout << "\n당신의 의뢰인은 " << client->getName() << "입니다.\n";
+            cout << "의뢰인이 사망하면 복수를 위해 다른 플레이어를 처치할 수 있게 됩니다.\n";
+        }
+        else {
+            cout << "\n의뢰인이 지정되지 않았습니다.\n";
         }
     }
 
     void checkClientStatus() {
-        if (client && !client->checkAlive()) {
+        if (client && !client->checkAlive() && !canKill) {
             canKill = true;
+            cout << "의뢰인 " << client->getName() << "의 죽음으로 인해 용병이 복수할 수 있게 되었습니다.\n";
         }
     }
 
     void action(Player& target) override {
-        if (!canUseAbility || !canKill) return;
+        if (!canUseAbility || !canKill) {
+            cout << "아직 능력을 사용할 수 없습니다.\n";
+            return;
+        }
+        
+        if (auto soldier = dynamic_cast<Soldier*>(&target)) {
+            if (soldier->isArmorActive() && soldier->defendShot()) {
+                return;
+            }
+        }
+        
         if (target.checkAlive()) {
             target.setAlive(false);
-            cout << target.getName() << " (이)가 총을 맞고 사망했습니다.\n";
+            cout << target.getName() << "이(가) 용병의 총에 맞아 사망했습니다.\n";
         }
     }
 

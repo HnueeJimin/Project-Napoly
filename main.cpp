@@ -14,23 +14,29 @@ int main() {
         cout << "3. 게임 규칙\n";
         cout << "4. 게임 종료\n";
         cout << "원하는 번호를 입력해주세요: ";
-        cin >> select;
+        
+        if (!(cin >> select)) {
+            clearInputBuffer();
+            cout << "잘못된 입력입니다. 올바른 숫자를 입력해주세요.\n\n";
+            continue;
+        }
 
         switch(select) {
             case 1:
-                start();
+                startGame();
                 break;
             case 2:
                 playerModify();
                 break;
             case 3:
-                gamerule();
+                gameRule();
                 break;
             case 4:
                 cout << "게임을 종료합니다.\n";
                 return 0;
             default:
-                cout << "잘못된 입력입니다. 다시 입력해주세요\n";
+                cout << "잘못된 입력입니다. 1-4 사이의 숫자를 입력해주세요.\n\n";
+                break;
         }
     }
 }
