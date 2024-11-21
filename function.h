@@ -69,16 +69,11 @@ public:
     NightPhaseManager()
     {
         actionPriorities = {
-            {"마피아", 1},
-            {"늑대인간", 2},
-            {"의사", 3},
-            {"간호사", 4},
-            {"경찰", 5},
-            {"스파이", 6},
-            {"기자", 7},
-            {"건달", 8},
-            {"테러리스트", 9},
-            {"성직자", 10}};
+            {"늑대인간", 1},
+            {"의사", 2},
+            {"마피아", 3},
+            {"군인", 4},
+            {"시민", 5}};
     }
 
     void clear()
@@ -233,9 +228,7 @@ void yourTurn(shared_ptr<Player> currentPlayer)
         return;
     }
 
-    if (currentPlayer->getRole() == "마담" || currentPlayer->getRole() == "도둑" ||
-        currentPlayer->getRole() == "과학자" || currentPlayer->getRole() == "군인" ||
-        currentPlayer->getRole() == "정치인" || currentPlayer->getRole() == "도굴꾼")
+    if (currentPlayer->getRole() == "군인" || currentPlayer->getRole() == "시민")
     {
         cout << "당신은 밤에 수행할 수 있는 역할이 없습니다.\n";
         return;
@@ -286,24 +279,6 @@ void yourTurn(shared_ptr<Player> currentPlayer)
                                         target->getName() + "을(를) 공격했습니다.",
                                         true});
             }
-            else if (currentPlayer->getRole() == "스파이")
-            {
-                string result = target->getRole();
-                nightResults.push_back({currentPlayer->getName(),
-                                        target->getName(),
-                                        target->getName() + "의 직업은 '" + result + "'입니다.",
-                                        true});
-
-                if (target->getRole() == "마피아")
-                {
-                    nightResults.push_back({currentPlayer->getName(),
-                                            target->getName(),
-                                            currentPlayer->getName() + "이(가) 마피아와 접선했습니다.",
-                                            false});
-                }
-            }
-            // ... 다른 직업의 결과 저장 로직도 추가하여야 함
-
             nightManager.addAction(currentPlayer, target, currentPlayer->getRole());
             break;
         }
@@ -341,7 +316,7 @@ void playerModify()
         {
             unsigned int num;
         sel:
-            cout << "몇 명의 플레이어를 추가하시겠습니까? (최대 14명) : ";
+            cout << "몇 명의 플레이어를 추가하시겠습니까? (최대 8명) : ";
             cin >> num;
 
             if (cin.fail() || num <= 0)
@@ -350,7 +325,7 @@ void playerModify()
                 cout << "잘못된 입력입니다. 범위 내의 숫자에서 선택해주세요\n";
                 goto sel;
             }
-            if (num + player_cnt > 14)
+            if (num + player_cnt > 8)
             { // 플레이어 숫자 검사
                 cout << "최대 등록할 수 있는 플레이어의 수를 넘었습니다.\n";
                 break;
@@ -416,39 +391,17 @@ shared_ptr<Player> createRole(const string &name, int roleType)
     case 0:
         return make_shared<Mafia>(name);
     case 1:
-        return make_shared<Spy>(name);
-    case 2:
         return make_shared<Werewolf>(name);
-    case 3:
-        return make_shared<Madame>(name);
-    case 4:
-        return make_shared<Thief>(name);
-    case 5:
-        return make_shared<Scientist>(name);
-    case 6:
+    case 2:
         return make_shared<Police>(name);
-    case 7:
+    case 3:
         return make_shared<Doctor>(name);
-    case 8:
+    case 4:
         return make_shared<Soldier>(name);
-    case 9:
-        return make_shared<Thug>(name);
-    case 10:
-        return make_shared<Politician>(name);
-    case 11:
-        return make_shared<Reporter>(name);
-    case 12:
-        return make_shared<Terrorist>(name);
-    case 13:
-        return make_shared<Nurse>(name);
-    case 14:
-        return make_shared<Mercenary>(name);
-    case 15:
-        return make_shared<Caveman>(name);
-    case 16:
-        return make_shared<Cleric>(name);
+    case 5:
+        return make_shared<Citizen>(name);
     default:
-        return make_shared<Mafia>(name);
+        return make_shared<Citizen>(name);
     }
 }
 
@@ -456,7 +409,7 @@ void assignRoles()
 {
     random_device rd;
     mt19937 gen(rd());
-    uniform_int_distribution<> dis(0, 16); // 직업 번호 생성
+    uniform_int_distribution<> dis(0, 5); // 직업 번호 생성
 
     players.clear();
     for (const auto &name : playlist)
@@ -474,11 +427,11 @@ void gameRule()
 
     if (!ruleFile.is_open())
     { // 룰 파일 열기 실패 시, 적절한 대체 방안 제공
-        cout << "1. 게임은 최소 8명의 플레이어가 필요합니다.\n";
+        cout << "1. 게임은 최소 6명의 플레이어가 필요합니다.\n";
         cout << "2. 각 플레이어는 게임 시작 시 랜덤으로 직업을 부여받습니다.\n";
         cout << "3. 게임은 낮과 밤으로 진행됩니다.\n";
         cout << "4. 낮에는 토론과 투표를 통해 용의자를 처형합니다.\n";
-        cout << "5. 밤에는 각자의 직업에 따른 특수 능력을 사용할 수 있습니다.\n";
+        cout << "5. 밤에는 각자의 직업에 따른 역할을 수행합니다.\n";
         cout << "6. 마피아를 모두 제거하거나, 마피아가 선량한 시민 수와 같아지면 게임이 종료됩니다.\n\n";
     }
 
@@ -515,16 +468,6 @@ void startVoting()
             cout << voter->getName() << "의 투표: ";
             cin >> choice;
             choice--;
-
-            if (choice >= 0 && choice < static_cast<int>(players.size()))
-            {
-                int voteWeight = 1;
-                if (voter->getRole() == "정치인")
-                {
-                    voteWeight = 2;
-                }
-                votes[players[choice]] += voteWeight;
-            }
         }
     }
 
@@ -543,9 +486,9 @@ void startVoting()
 
 void startGame()
 {
-    if (playlist.size() < 8)
+    if (playlist.size() < 6)
     {
-        cout << "\n게임을 시작하기 위해서는 최소 8명의 플레이어가 필요합니다.\n";
+        cout << "\n게임을 시작하기 위해서는 최소 6명의 플레이어가 필요합니다.\n";
         cout << "현재 플레이어 수: " << playlist.size() << "명\n\n";
         return;
     }
@@ -582,9 +525,7 @@ bool checkVictoryCondition()
     {
         if (player->checkAlive())
         {
-            if (player->getRole() == "마피아" || player->getRole() == "스파이" ||
-                player->getRole() == "늑대인간" || player->getRole() == "마담" ||
-                player->getRole() == "도둑" || player->getRole() == "과학자")
+            if (player->getRole() == "마피아" || player->getRole() == "늑대인간")
             {
                 mafiaCount++;
             }
@@ -630,20 +571,6 @@ void startNight()
         // 직업 확인 및 능력 사용
         cout << "\n=== " << player->getName() << "님의 차례 ===\n";
         cout << "당신의 직업은 " << player->getRole() << "입니다.\n";
-
-        // 첫 날 밤 용병 특수 처리
-        if (currentDay == 1 && player->getRole() == "용병")
-        {
-            if (auto mercenary = dynamic_pointer_cast<Mercenary>(player))
-            {
-                mercenary->assignClient(players);
-                nightResults.push_back({player->getName(),
-                                        "",
-                                        "당신의 의뢰인이 정해졌습니다.",
-                                        true});
-                mercenary->showClientInfo();
-            }
-        }
 
         // 능력 사용
         yourTurn(player);
