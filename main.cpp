@@ -13,7 +13,7 @@ int main() {
         cout << "2. 플레이어 설정\n";
         cout << "3. 게임 규칙\n";
         cout << "4. 게임 종료\n";
-        cout << "원하는 번호를 입력해주세요: ";
+        cout << "\n원하는 번호를 입력해주세요: ";
         
         if (!(cin >> select)) {
             clearInputBuffer();
