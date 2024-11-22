@@ -120,6 +120,7 @@ public:
 
         map<shared_ptr<Player>, bool> healedPlayers; // 치료된 플레이어 추적
         map<shared_ptr<Player>, bool> killedPlayers; // 죽은 플레이어 추적
+        map<shared_ptr<Player>, bool> defendedPlayers; // 방어에 성공한 플레이어 추적
 
         // 각 액션 처리
         for (const auto& action : actions)
@@ -132,9 +133,10 @@ public:
                 // 마피아의 공격
                 if (auto soldier = dynamic_cast<Soldier*>(action.target.get()))
                 {
-                    if (soldier->defendShot())
-                    {
-                        cout << action.target->getName() << "님이 방어에 성공했습니다!\n";
+                    if (soldier->isArmorActive()) {
+                        soldier->defendShot(); // Armor 소모
+                        defendedPlayers[action.target] = true;
+                        healedPlayers.erase(action.target); // 이 때 의사의 치료는 무효임
                         continue;
                     }
                 }
@@ -145,18 +147,30 @@ public:
                 auto werewolf = dynamic_pointer_cast<Werewolf>(action.actor);
                 if (werewolf && werewolf->isTamed())
                 {
-                    killedPlayers[action.target] = true;
+                    killedPlayers[action.target] = true; // 길들여진 늑대인간의 공격은 군인의 Armor를 무시
+                    healedPlayers.erase(action.target); // 늑대인간의 공격은 의사 치료 무시
                 }
             }
             else if (action.actor->getRole() == "의사")
             {
-                // 치료 처리
-                healedPlayers[action.target] = true;
+                if (!defendedPlayers[action.target]) { // 방어되지 않은 대상만 치료
+                    healedPlayers[action.target] = true;
+                }
             }
             // 다른 직업들의 능력은 즉시 처리
             else
             {
                 action.actor->action(*action.target);
+            }
+        }
+
+        bool anyEvent = false;
+
+        // 방어 성공 메시지 출력
+        for (const auto& pair : defendedPlayers) {
+            if (pair.second) {
+                cout << pair.first->getName() << "이(가) 총격으로부터 몸을 지켰습니다!\n";
+                anyEvent = true;
             }
         }
 
@@ -170,14 +184,20 @@ public:
             {
                 if (healedPlayers[target])
                 {
-                    cout << "의사가 " << target->getName() << "님을 치료했습니다.\n";
+                    cout << "의사가 " << target->getName() << formatActionMessage("의사", "heal", true) << endl;
+                    anyEvent = true;
                 }
                 else
                 {
                     target->setAlive(false);
-                    cout << target->getName() << "님이 사망했습니다.\n";
+                    cout << target->getName() << "님이 " << formatActionMessage("마피아", "attack", true) << endl;
+                    anyEvent = true;
                 }
             }
+        }
+
+        if (!anyEvent && killedPlayers.empty()) {
+            cout << "아무런 일도 일어나지 않았습니다\n";
         }
     }
 };
@@ -223,26 +243,6 @@ void showResults(const string& playerName)
         if (result.playerName == playerName && result.isPrivate)
         {
             cout << "[행동 결과] " << result.message << "\n";
-            foundResult = true;
-        }
-    }
-
-    // 2. 자신이 대상이 된 행동 결과
-    for (const auto& result : nightResults)
-    {
-        if (result.targetName == playerName)
-        {
-            cout << "[받은 영향] " << result.message << "\n";
-            foundResult = true;
-        }
-    }
-
-    // 3. 공개된 정보
-    for (const auto& result : nightResults)
-    {
-        if (!result.isPrivate)
-        {
-            cout << "[공개 정보] " << result.message << "\n";
             foundResult = true;
         }
     }
@@ -404,7 +404,9 @@ void yourTurn(shared_ptr<Player> currentPlayer)
                         remove_if(nightResults.begin(), nightResults.end(),
                             [prevMafiaName](const NightResult& result)
                             {
-                                return result.playerName == prevMafiaName;
+                                return result.playerName == prevMafiaName ||
+                                    (result.playerName == "마피아" &&
+                                        result.targetName == mafiaTarget);
                             }),
                         nightResults.end());
                 }
@@ -703,38 +705,97 @@ void startVoting()
 {
     cout << "\n=== 투표를 시작합니다 ===\n";
     map<shared_ptr<Player>, int> votes;
+    vector<shared_ptr<Player>> alivePlayers;
 
-    // 살아있는 플레이어 목록 표시
-    for (size_t i = 0; i < players.size(); i++)
+    // 살아있는 플레이어의 목록 생성
+    for (const auto& player : players )
     {
-        if (players[i]->checkAlive())
+        if (player->checkAlive())
         {
-            cout << i + 1 << ". " << players[i]->getName() << "\n";
+            alivePlayers.push_back(player);
         }
     }
-    // 투표 진행
+    // 1차 투표 진행
     for (const auto& voter : players)
     {
         if (voter->checkAlive() && voter->getCanVote())
         {
+            system("cls");
+            cout << "\n=== 투표 진행 중 ===\n";
+            cout << voter->getName() << "의 투표\n\n";
+
+            // 투표 가능한 플레이어 목록 표시
+            cout << "0. 기권\n";
+            for (size_t i = 0; i < alivePlayers.size(); i++) {
+                cout << i + 1 << ". " << alivePlayers[i]->getName() << endl;
+            }
+
             int choice;
-            cout << voter->getName() << "의 투표: ";
-            cin >> choice;
-            choice--;
+            while (1) {
+                cout << "\n투표할 대상을 선택하세요 : ";
+                if (cin >> choice) {
+                    if (choice == 0) {
+                        cout << "투표를 기권했습니다.\n";
+                        break;
+                    }
+                    else if (choice > 0 && choice <= static_cast<int>(alivePlayers.size())) {
+                        votes[alivePlayers[choice - 1]]++;
+                        break;
+                    }
+                }
+                clearInputBuffer();
+                cout << "잘못된 입력입니다. 다시 선택해주세요.\n";
+            }
+            clearInputBuffer();
         }
     }
 
-    // 투표 결과 처리
-    auto maxVotes = max_element(votes.begin(), votes.end(),
-        [](const auto& p1, const auto& p2)
-        { return p1.second < p2.second; });
+    // 최다 득표자 확인
+    shared_ptr<Player> maxVotePlayer = nullptr;
+    int maxVotes = 0;
+    bool isDuplicate = false;
 
-    if (maxVotes != votes.end())
-    {
-        cout << "\n"
-            << maxVotes->first->getName() << "이(가) 처형되었습니다.\n";
-        maxVotes->first->setAlive(false);
+    for (const auto& vote : votes) {
+        if (vote.second > maxVotes) {
+            maxVotes = vote.second;
+            maxVotePlayer = vote.first;
+            isDuplicate = false;
+        }
+        else if (vote.second == maxVotes) {
+            isDuplicate = true;
+        }
     }
+
+    // 최다 득표자가 한 명일 경우에만 찬반 투표 진행
+    if (maxVotePlayer && !isDuplicate && maxVotes > 0) {
+        cout << "\n=== " << maxVotePlayer->getName() << "님에 대한 최종 찬반 투표를 진행합니다 ===\n";
+        int agree = 0, disagree = 0;
+
+        for (const auto& voter : players) {
+            if (voter->checkAlive() && voter->getCanVote()) {
+                cout << voter->getName() << "의 투표 (1: 찬성, 2: 반대): ";
+                int choice;
+                cin >> choice;
+                if (choice == 1) agree++;
+                else if (choice == 2) disagree++;
+            }
+        }
+        cout << "\n=== 찬반 투표 결과 ===\n";
+        cout << "찬성: " << agree << "표\n";
+        cout << "반대: " << disagree << "표\n";
+
+        if (agree > disagree) {
+            cout << maxVotePlayer->getName() << "님이 투표로 처형되었습니다.\n";
+            maxVotePlayer->setAlive(false);
+        }
+        else cout << "과반수를 넘기지 않아 무효처리 되었습니다.\n";
+    }
+    else {
+        if (maxVotes == 0) cout << "\n아무도 투표하지 않았습니다\n";
+        else cout << "투표자 동률 발생으로 인해 투표가 무효처리 되었습니다\n";
+    }
+    cout << "5초 후에 게임이 재개됩니다.\n";
+    std::this_thread::sleep_for(std::chrono::seconds(5)); // 결과를 볼 수 있도록 5초의 딜레이
 }
 
 void startGame()
@@ -821,7 +882,7 @@ void startNight()
         {
             cout << player->getName() << "님이 맞으시다면 Y를 입력해주세요: ";
             cin >> input;
-            if (toupper(input) == 'Y' || input == 'ㅛ')
+            if (input == 'Y' || input == 'y' || input == 'ㅛ')
                 break;
             cout << player->getName() << "님이 아닌 것 같습니다. 해당 플레이어가 직접 시도해주세요.\n";
             clearInputBuffer();
@@ -854,7 +915,7 @@ void startNight()
         {
             cout << player->getName() << "님이 맞으시다면 Y를 입력해주세요: ";
             cin >> input;
-            if (toupper(input) == 'Y' || input == 'ㅛ')
+            if (input == 'Y' || input == 'y' || input == 'ㅛ')
                 break;
             cout << player->getName() << "님이 아닌 것 같습니다. 해당 플레이어가 직접 시도해주세요.\n";
             clearInputBuffer();
@@ -874,6 +935,7 @@ void startDay() {
     cout << "\n=== " << currentDay << "번째 날이 밝았습니다 ===\n";
 
     bool anyEvent = false;
+    bool anyAttack = false;
 
     // 전날 밤의 행동 결과 처리
     for (const auto& action : nightManager.getActions()) {
@@ -881,10 +943,25 @@ void startDay() {
             (action.actor->getRole() == "늑대인간" &&
                 dynamic_pointer_cast<Werewolf>(action.actor)->isTamed())) {
 
-            // 늑대인간이 타겟인 경우
+            anyAttack = true;
+
+            // 늑대인간이 타겟인 경우 - 마피아의 공격 무효처리
             if (action.target == werewolfPlayer && action.actor->getRole() == "마피아") {
-                // 아무 일도 일어나지 않음
                 continue;
+            }
+
+            // 현재 마피아의 최종 타겟인 경우에만 처리
+            if (action.actor->getRole() == "마피아" && action.target->getName() != mafiaTarget) {
+                continue;
+            }
+
+            // 군인의 방어 처리
+            if (auto soldier = dynamic_cast<Soldier*>(action.target.get())) {
+                if (soldier->isArmorActive() && action.actor->getRole() == "마피아") {
+                    cout << action.target->getName() << "이(가) 총격으로부터 몸을 지켰습니다!\n";
+                    anyEvent = true;
+                    continue;
+                }
             }
 
             // 죽은 경우에만 메시지 출력
@@ -895,7 +972,8 @@ void startDay() {
         }
     }
 
-    if (!anyEvent) {
+    // 공격이 있었지만 아무도 죽지 않은 경우 메시지 출력 x
+    if (!anyEvent && !anyAttack) {
         cout << "아무런 일도 일어나지 않았습니다.\n";
     }
 
