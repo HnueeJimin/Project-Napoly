@@ -722,7 +722,7 @@ void startVoting()
         {
             system("cls");
             cout << "\n=== 투표 진행 중 ===\n";
-            cout << voter->getName() << "의 투표\n\n";
+            cout << voter->getName() << "님의 투표\n\n";
 
             // 투표 가능한 플레이어 목록 표시
             cout << "0. 기권\n";
