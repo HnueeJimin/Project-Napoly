@@ -75,8 +75,9 @@ public:
             {"늑대인간", 1},
             {"의사", 2},
             {"마피아", 3},
-            {"군인", 4},
-            {"시민", 5} };
+            {"사립 탐정", 4},
+            {"군인", 5},
+            {"시민", 6} };
     }
 
     const vector<NightAction>& getActions() const {
@@ -262,7 +263,7 @@ string formatActionMessage(const string& actorRole, const string& action, bool i
     else {
         if (actorRole == "마피아") return "을(를) 공격합니다.";
         if (actorRole == "의사") return "을(를) 치료합니다.";
-        if (actorRole == "경찰") return "을(를) 조사합니다.";
+        if (actorRole == "경찰" || actorRole == "사립 탐정") return "을(를) 조사합니다.";
         if (actorRole == "늑대인간") return "을(를) 먹잇감으로 선정합니다.";
     }
     return "";
@@ -410,6 +411,7 @@ void yourTurn(shared_ptr<Player> currentPlayer)
                             }),
                         nightResults.end());
                 }
+            
 
                 // 새로운 타겟 정보 저장
                 mafiaTarget = target->getName();
@@ -451,6 +453,17 @@ void yourTurn(shared_ptr<Player> currentPlayer)
                                         target->getName() + "을(를) 공격 대상으로 지정했습니다.",
                                         true });
                 nightManager.addAction(currentPlayer, target, currentPlayer->getRole());
+            }
+            else if (currentPlayer->getRole() == "사립 탐정") 
+            {
+                auto detective = dynamic_pointer_cast<PrivateDetective>(currentPlayer);
+                if (detective) {
+                    nightResults.push_back({
+                        currentPlayer->getName(),
+                        target->getName(),
+                        target->getName() + "님을 조사하기로 했습니다"
+                    });
+                }
             }
 
             cout << "능력 사용이 완료되었습니다.\n";
@@ -629,7 +642,14 @@ void assignRoles()
     players.push_back(werewolfPlayer);
     assigned[werewolfIndex] = true;
 
-    int soldierIndex; // 5. 군인 할당
+    int detectiveIndex; // 5. 사립 탐정 할당
+    do {
+        detectiveIndex = dis(gen);
+    } while (assigned[detectiveIndex]);
+    players.push_back(make_shared<PrivateDetective>(playlist[detectiveIndex]));
+    assigned[detectiveIndex] = true;
+
+    int soldierIndex; // 6. 군인 할당
     do
     {
         soldierIndex = dis(gen);
@@ -638,7 +658,7 @@ void assignRoles()
     assigned[soldierIndex] = true;
 
     for (int i = 0; i < totalPlayers; i++)
-    { // 6. 나머지는 모두 시민으로 할당
+    { // 7. 나머지는 모두 시민으로 할당
         if (!assigned[i])
         {
             players.push_back(make_shared<Citizen>(playlist[i]));

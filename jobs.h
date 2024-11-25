@@ -138,6 +138,29 @@ public:
     string getRole() const override { return "군인"; }
 };
 
+class PrivateDetective : public Player { // 사립 탐정
+private:
+    string investigationResult; // 조사 결과
+
+public:
+    PrivateDetective(string n) : Player(n), investigationResult("") {}
+
+    void action(Player& target) override {
+        if (!canUseAbility) return;
+        investigationResult = target.getName();
+    }
+
+    void setInvestigationResult(const string& result) {
+        investigationResult = result;
+    }
+
+    string getInvestigationResult() const {
+        return investigationResult;
+    }
+
+    string getRole() const override { return "사립 탐정"; }
+};
+
 class Citizen : public Player {
 public:
     Citizen(string n) : Player(n) {}
