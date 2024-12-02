@@ -1,4 +1,4 @@
-// jobs.h
+// jobs.h 1.1.2 ver
 
 #ifndef JOBS_H
 #define JOBS_H
