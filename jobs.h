@@ -1,4 +1,4 @@
-// jobs.h 1.1.2 ver
+// jobs.h
 
 #ifndef JOBS_H
 #define JOBS_H
@@ -125,9 +125,9 @@ public:
     }
 
     bool isArmorActive() const { return armorActive; }
-    
+
     bool defendShot() {
-        if(armorActive) {
+        if (armorActive) {
             armorActive = false;
             cout << "총격으로 인한 처치를 막아냈습니다!\n";
             return true;

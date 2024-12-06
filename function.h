@@ -1,14 +1,15 @@
-// function.h 1.1.2 ver
+// function.h
 #ifndef FUNCTION_H
 #define FUNCTION_H
 
-#include <iostream>
 #include <ctime>
 #include <functional>
 #include <fstream>
 #include <algorithm>
 #include <chrono>
 #include <thread>
+#include <locale>
+#include <codecvt>
 #include "jobs.h"
 
 using namespace std;
@@ -67,9 +68,12 @@ class NightPhaseManager
 private:
     vector<NightAction> actions;
     map<string, int> actionPriorities;
+    string mafiaTarget;
+    bool werewolfTamed;
+    vector<shared_ptr<Player>>& mafiaPlayers;
 
 public:
-    NightPhaseManager()
+    NightPhaseManager(vector<shared_ptr<Player>>& mafia_players) : mafiaTarget(""), werewolfTamed(false), mafiaPlayers(mafia_players)
     {
         actionPriorities = {
             {"늑대인간", 1},
@@ -79,6 +83,22 @@ public:
             {"시민", 5} };
     }
 
+    void setWerewolfTamed(bool tamed) {
+        werewolfTamed = tamed;
+    }
+
+    bool isWerewolfTamed() const {
+        return werewolfTamed;
+    }
+
+    void setMafiaTarget(const string& target) {
+        mafiaTarget = target;
+    }
+
+    const string& getMafiaTarget() const {
+        return mafiaTarget;
+    }
+
     const vector<NightAction>& getActions() const {
         return actions;
     }
@@ -86,6 +106,7 @@ public:
     void clear()
     {
         actions.clear();
+        mafiaTarget.clear();
     }
 
     void removeAction(shared_ptr<Player> actor, const string& actionType)
@@ -147,8 +168,17 @@ public:
                 auto werewolf = dynamic_pointer_cast<Werewolf>(action.actor);
                 if (werewolf && werewolf->isTamed())
                 {
-                    killedPlayers[action.target] = true; // 길들여진 늑대인간의 공격은 군인의 Armor를 무시
-                    healedPlayers.erase(action.target); // 늑대인간의 공격은 의사 치료 무시
+                    bool anyMafiaAlive = false; // 살아있는 마피아가 있는지 확인
+                    for (const auto& mafia : mafiaPlayers) {
+                        if (mafia->getRole() == "마피아" && mafia->checkAlive()) {
+                            anyMafiaAlive = true;
+                            break;
+                        }
+                    }
+                    if (!anyMafiaAlive) { // 마피아가 모두 사망한 경우에만 살육 가능
+                        killedPlayers[action.target] = true; // 길들여진 늑대인간의 공격은 군인의 Armor를 무시
+                        healedPlayers.erase(action.target); // 늑대인간의 공격은 의사 치료 무시
+                    }
                 }
             }
             else if (action.actor->getRole() == "의사")
@@ -187,10 +217,26 @@ public:
                     cout << "의사가 " << target->getName() << formatActionMessage("의사", "heal", true) << endl;
                     anyEvent = true;
                 }
-                else
+                else // 실제로 사망한 경우에만
                 {
                     target->setAlive(false);
-                    cout << target->getName() << "님이 " << formatActionMessage("마피아", "attack", true) << endl;
+
+                    auto killerAction = find_if(actions.begin(), actions.end(),
+                        [target](const NightAction& action) {
+                            return (action.actor->getRole() == "마피아" ||
+                                action.actor->getRole() == "늑대인간") &&
+                                action.target == target;
+                        });
+
+                    if (killerAction != actions.end()) {
+                        // 늑대인간의 살육과 마피아의 처치 메시지 구분
+                        if (killerAction->actor->getRole() == "늑대인간") {
+                            cout << target->getName() << "님이 늑대인간에게 살육됐습니다\n";
+                        }
+                        else {
+                            cout << target->getName() << "님이 " << formatActionMessage("마피아", "attack", true) << endl;
+                        }
+                    }
                     anyEvent = true;
                 }
             }
@@ -210,7 +256,7 @@ vector<shared_ptr<Player>> mafiaPlayers;
 shared_ptr<Player> mafiaTargetPlayer;
 shared_ptr<Player> previousMafia;
 shared_ptr<Player> werewolfPlayer;
-static NightPhaseManager nightManager;
+static NightPhaseManager nightManager(mafiaPlayers);
 string mafiaTarget;
 int currentDay = 1;
 bool werewolfTamed = false;
@@ -237,7 +283,15 @@ void showResults(const string& playerName)
 {
     bool foundResult = false;
 
-    // 1. 자신이 수행한 행동 결과
+    auto currentPlayer = find_if(players.begin(), players.end(),
+        [&playerName](const auto& player) {return player->getName() == playerName; });
+
+    if (currentPlayer != players.end() && !(*currentPlayer)->checkAlive()) {
+        cout << "[받은 영향] 당신은 사망하셨습니다.\n";
+        foundResult = true;
+    }
+
+    // 행동 결과
     for (const auto& result : nightResults)
     {
         if (result.playerName == playerName && result.isPrivate)
@@ -249,7 +303,7 @@ void showResults(const string& playerName)
 
     if (!foundResult)
     {
-        cout << "당신에게 아무런 일도 일어나지 않았습니다...\n";
+        cout << "[받은 영향] 아무런 일도 일어나지 않았습니다...\n";
     }
 }
 
@@ -303,17 +357,14 @@ void yourTurn(shared_ptr<Player> currentPlayer)
     }
 
     // 4. 마피아 특별 처리
-    if (currentPlayer->getRole() == "마피아" || currentPlayer->getRole() == "늑대인간" && werewolfTamed)
+    if (currentPlayer->getRole() == "마피아")
     {
         cout << "\n=== 마피아 팀 정보 ===\n";
-        for (const auto& mafia : mafiaPlayers)
-        {
-            if (mafia->getName() != currentPlayer->getName())
-            {
+        for (const auto& mafia : mafiaPlayers) {
+            if (mafia->getName() != currentPlayer->getName()) {
                 cout << mafia->getName() << "님은 " << mafia->getRole() << "입니다.\n";
             }
         }
-
         // 이미 다른 마피아가 타겟을 선택했는지 확인
         if (!mafiaTarget.empty())
         {
@@ -349,6 +400,18 @@ void yourTurn(shared_ptr<Player> currentPlayer)
             }
         }
     }
+    else if (currentPlayer->getRole() == "늑대인간") {
+        auto werewolf = dynamic_pointer_cast<Werewolf>(currentPlayer);
+        if (werewolf && werewolf->isTamed()) {
+            cout << "\n=== 마피아 팀 정보 ===\n";
+            for (const auto& member : mafiaPlayers) {
+                if (member->getName() != currentPlayer->getName()) {
+                    cout << member->getName() << "님은 " << member->getRole() << "입니다.\n";
+                }
+            }
+        }
+    }
+    
 
     // 5. 타겟 선택 처리
     int choice;
@@ -413,6 +476,7 @@ void yourTurn(shared_ptr<Player> currentPlayer)
 
                 // 새로운 타겟 정보 저장
                 mafiaTarget = target->getName();
+                nightManager.setMafiaTarget(target->getName());
                 mafiaTargetPlayer = target;
                 previousMafia = currentPlayer;
 
@@ -451,6 +515,7 @@ void yourTurn(shared_ptr<Player> currentPlayer)
                                         target->getName() + "을(를) 공격 대상으로 지정했습니다.",
                                         true });
                 nightManager.addAction(currentPlayer, target, currentPlayer->getRole());
+                checkWerewolfTaming(currentPlayer, target);
             }
 
             cout << "능력 사용이 완료되었습니다.\n";
@@ -661,43 +726,87 @@ void checkWerewolfTaming(shared_ptr<Player> currentPlayer, shared_ptr<Player> ta
     if (currentPlayer->getRole() == "마피아" && target == werewolfPlayer)
     {
         werewolfTamed = true;
+        werewolf->setTamed(true);
         mafiaPlayers.push_back(werewolfPlayer); // 마피아팀과 공유
-        cout << "늑대인간이 마피아에게 길들여졌습니다!\n";
+
+        nightResults.push_back({
+            currentPlayer->getName(),
+            werewolfPlayer->getName(),
+            target->getName() + "님은 늑대인간이며 당신과 접선하였습니다!",
+            true
+            });
+
+        nightResults.push_back({
+            werewolfPlayer->getName(),
+            currentPlayer->getName(),
+            currentPlayer->getName() + "님은 마피아이며 당신과 접선하였습니다!",
+            true
+            });
     }
 
     // 2. 마피아와 늑대인간의 타겟 일치
-    else if (currentPlayer->getRole() == " 늑대인간" && !mafiaTarget.empty() && target->getName() == mafiaTarget)
+    else if (currentPlayer->getRole() == "늑대인간" && !mafiaTarget.empty() && target->getName() == mafiaTarget)
     {
         werewolfTamed = true;
         mafiaPlayers.push_back(werewolfPlayer); // 마피아팀과 공유
-        cout << "늑대인간이 마피아에게 길들여졌습니다!\n";
+
+        // 이전에 선택한 마피아 찾기
+        shared_ptr<Player> currentMafia = nullptr;
+        for (const auto& mafia : mafiaPlayers) {
+            if (mafia->getRole() == "마피아") {
+                currentMafia = mafia;
+                break;
+            }
+        }
+
+        if (currentMafia) { // 접선 결과 메시지 추가
+            nightResults.push_back({
+                currentPlayer->getName(),
+                currentMafia->getName(),
+                currentMafia->getName() + "님은 마피아이며 당신과 접선하였습니다!",
+                true
+                });
+            nightResults.push_back({
+                currentMafia->getName(),
+                currentPlayer->getName(),
+                currentPlayer->getName() + "님은 늑대인간이며 당신과 접선하였습니다!",
+                true
+                });
+        }
     }
 }
 
 void gameRule()
 {
-    cout << "\n=== 마피아 게임 규칙 ===\n";
+    string originalLocale = setlocale(LC_ALL, nullptr); // 현재 로케일 저장
 
-    ifstream ruleFile("mafiarule.txt");
+    cout << "\n=== 마피아 게임 규칙 ===\n\n";
 
-    if (!ruleFile.is_open())
-    { // 룰 파일 열기 실패 시, 적절한 대체 방안 제공
+    try {
+        setlocale(LC_ALL, ".UTF-8"); // UTF-8 출력을 위한 로케일 설정
+        wifstream file("mafiarule.txt");
+        if (!file.is_open()) {
+            throw runtime_error("Cannot open file");
+        }
+        file.imbue(locale(locale(), new codecvt_utf8<wchar_t>));
+        wcout.imbue(locale(".UTF-8"));
+        wstring line;
+        while (getline(file, line)) {
+            wcout << line << endl;
+        }
+        setlocale(LC_ALL, originalLocale.c_str()); // 원래 로케일로 복귀
+        file.close();
+    }
+    catch (const runtime_error& e) {
+        setlocale(LC_ALL, originalLocale.c_str());
         cout << "1. 게임은 최소 6명의 플레이어가 필요합니다.\n";
         cout << "2. 각 플레이어는 게임 시작 시 랜덤으로 직업을 부여받습니다.\n";
         cout << "3. 게임은 낮과 밤으로 진행됩니다.\n";
         cout << "4. 낮에는 토론과 투표를 통해 용의자를 처형합니다.\n";
         cout << "5. 밤에는 각자의 직업에 따른 역할을 수행합니다.\n";
-        cout << "6. 마피아를 모두 제거하거나, 마피아가 선량한 시민 수와 같아지면 게임이 종료됩니다.\n\n";
+        cout << "6. 마피아를 모두 제거하나, 마피아가 선량한 시민의 수와 같아지면 게임이 종료됩니다.\n\n";
+        return;
     }
-
-    string line;
-    while (getline(ruleFile, line))
-    {
-        cout << line << "\n";
-    }
-
-    ruleFile.close();
-    cout << "\n";
 }
 
 // 게임 진행 함수
@@ -708,7 +817,7 @@ void startVoting()
     vector<shared_ptr<Player>> alivePlayers;
 
     // 살아있는 플레이어의 목록 생성
-    for (const auto& player : players )
+    for (const auto& player : players)
     {
         if (player->checkAlive())
         {
@@ -722,7 +831,7 @@ void startVoting()
         {
             system("cls");
             cout << "\n=== 투표 진행 중 ===\n";
-            cout << voter->getName() << "님의 투표\n\n";
+            cout << voter->getName() << "의 투표\n\n";
 
             // 투표 가능한 플레이어 목록 표시
             cout << "0. 기권\n";
@@ -796,6 +905,9 @@ void startVoting()
     }
     cout << "5초 후에 게임이 재개됩니다.\n";
     std::this_thread::sleep_for(std::chrono::seconds(5)); // 결과를 볼 수 있도록 5초의 딜레이
+
+    clearInputBuffer();
+    cin.ignore();
 }
 
 void startGame()
@@ -936,6 +1048,8 @@ void startDay() {
 
     bool anyEvent = false;
     bool anyAttack = false;
+    bool doctorSaved = false;
+    string savedPlayerName;
 
     // 전날 밤의 행동 결과 처리
     for (const auto& action : nightManager.getActions()) {
@@ -970,6 +1084,24 @@ void startDay() {
                 anyEvent = true;
             }
         }
+        else if (action.actor->getRole() == "의사") {
+            if (action.target->checkAlive() &&
+                any_of(nightManager.getActions().begin(), nightManager.getActions().end(),
+                    [&action](const NightAction& attack) {
+                        return (attack.actor->getRole() == "마피아" ||
+                            (attack.actor->getRole() == "늑대인간" &&
+                                dynamic_pointer_cast<Werewolf>(attack.actor)->isTamed())) &&
+                            attack.target == action.target;
+                    })) {
+                doctorSaved = true;
+                savedPlayerName = action.target->getName();
+            }
+        }
+    }
+
+    if (doctorSaved) {
+        cout << "의사가" << savedPlayerName << "님을 치료했습니다.\n";
+        anyEvent = true;
     }
 
     // 공격이 있었지만 아무도 죽지 않은 경우 메시지 출력 x
@@ -987,8 +1119,8 @@ void startDay() {
         }
     }
 
-    cout << "\n토론 시간입니다. 30초 후 투표가 시작됩니다...\n";
-    std::this_thread::sleep_for(std::chrono::seconds(30));
+    cout << "\n토론 시간입니다. 30초 후 투표가 시작됩니다(실제는 5초)...\n";
+    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     startVoting();
 }
