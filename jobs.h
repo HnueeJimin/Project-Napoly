@@ -1,4 +1,4 @@
-// jobs.h 1.1.2 ver
+// jobs.h
 
 #ifndef JOBS_H
 #define JOBS_H
@@ -38,11 +38,8 @@ public:
 };
 
 class Mafia : public Player { // 마피아
-private:
-    bool exposed;  // 정체가 발각되었는지 여부
-
 public:
-    Mafia(string n) : Player(n), exposed(false) {}
+    Mafia(string n) : Player(n) {}
 
     void action(Player& target) override {
         if (!canUseAbility) return;
@@ -66,7 +63,6 @@ public:
         if (!canUseAbility) return;
         if (tamed && target.checkAlive()) {
             target.setAlive(false);
-            cout << target.getName() << "이(가) 늑대인간에게 '살육'당했습니다.\n";
         }
     }
 
@@ -96,7 +92,6 @@ public:
     void action(Player& target) override {
         if (!canUseAbility) return;
         protectedTarget = &target;
-        cout << "오늘밤 " << target.getName() << " (을)를 보호합니다.\n";
     }
 
     bool isProtected(Player& target) const { // 보호 여부 확인 함수
@@ -106,7 +101,6 @@ public:
     void healIfAttacked(Player& target) {
         if (protectedTarget == &target && !target.checkAlive()) {
             target.setAlive(true);
-            cout << "의사가 " << target.getName() << " (을)를 치료했습니다.\n";
         }
     }
 
@@ -125,11 +119,10 @@ public:
     }
 
     bool isArmorActive() const { return armorActive; }
-    
+
     bool defendShot() {
-        if(armorActive) {
+        if (armorActive) {
             armorActive = false;
-            cout << "총격으로 인한 처치를 막아냈습니다!\n";
             return true;
         }
         return false;
